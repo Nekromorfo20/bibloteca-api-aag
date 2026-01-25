@@ -83,7 +83,7 @@ builder.Services.AddAuthorization(opciones =>
 builder.Services.AddSwaggerGen(opciones => {
     opciones.SwaggerDoc("v1", new OpenApiInfo {
         Version = "v1",
-        Title = "Biblioteca API",
+        Title = "Biblioteca API - Hola, GitHub Actions",
         Description = "Este es un web api para trabajar con datos de autores y libros",
         Contact = new OpenApiContact {
             Name = "Alan Aguilar",
