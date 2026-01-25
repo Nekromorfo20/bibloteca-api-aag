@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
-var builder = WebApplication.CreateBuilderABC(args);
+var builder = WebApplication.CreateBuilder(args);
 
 // Área de Servicios
 builder.Services.AddOutputCache(opciones => {
