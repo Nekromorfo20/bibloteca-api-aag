@@ -11,9 +11,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilderABC(args);
 
-// Área de Servicios
+// Ãrea de Servicios
 builder.Services.AddOutputCache(opciones => {
     opciones.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(60);
 });
@@ -129,7 +129,7 @@ builder.Services.AddSwaggerGen(opciones => {
 
 var app = builder.Build();
 
-// Se ímplementan todas las migraciones en la BD de Azure la primera vez que se ejecuta el proyecto
+// Se Ã­mplementan todas las migraciones en la BD de Azure la primera vez que se ejecuta el proyecto
 using (var scope = app.Services.CreateScope()) {
     var dbContext = scope.ServiceProvider.GetService<ApplicationDbContext>();
     if (dbContext.Database.IsRelational()) {
@@ -137,7 +137,7 @@ using (var scope = app.Services.CreateScope()) {
     }
 }
 
-    // Área de Middlewares
+    // Ãrea de Middlewares
     app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async context => {
         // Instancias para manejar el error y obtenerlo del sistema
         var exceptionHanlderFeature = context.Features.Get<IExceptionHandlerFeature>();
