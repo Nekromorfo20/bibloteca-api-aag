@@ -4,6 +4,7 @@ using BibliotecaAPI.Datos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BibliotecaAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260128074641_TablasRestricciones")]
+    partial class TablasRestricciones
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -122,51 +125,6 @@ namespace BibliotecaAPI.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Errores");
-                });
-
-            modelBuilder.Entity("BibliotecaAPI.Entidades.Factura", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("FechaEmision")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("FechaLimiteDePago")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Monto")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("Pagada")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UsuarioId");
-
-                    b.ToTable("Facturas");
-                });
-
-            modelBuilder.Entity("BibliotecaAPI.Entidades.FacturaEmitida", b =>
-                {
-                    b.Property<int>("Mes")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Ano")
-                        .HasColumnType("int");
-
-                    b.HasKey("Mes", "Ano");
-
-                    b.ToTable("FacturasEmitidas");
                 });
 
             modelBuilder.Entity("BibliotecaAPI.Entidades.Libro", b =>
@@ -308,9 +266,6 @@ namespace BibliotecaAPI.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("MalaPaga")
-                        .HasColumnType("bit");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -523,17 +478,6 @@ namespace BibliotecaAPI.Migrations
                     b.Navigation("Usuario");
                 });
 
-            modelBuilder.Entity("BibliotecaAPI.Entidades.Factura", b =>
-                {
-                    b.HasOne("BibliotecaAPI.Entidades.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Usuario");
-                });
-
             modelBuilder.Entity("BibliotecaAPI.Entidades.LlaveAPI", b =>
                 {
                     b.HasOne("BibliotecaAPI.Entidades.Usuario", "Usuario")
@@ -559,7 +503,7 @@ namespace BibliotecaAPI.Migrations
             modelBuilder.Entity("BibliotecaAPI.Entidades.RestriccionDominio", b =>
                 {
                     b.HasOne("BibliotecaAPI.Entidades.LlaveAPI", "Llave")
-                        .WithMany("RestriccionesDominio")
+                        .WithMany()
                         .HasForeignKey("LlaveId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -570,7 +514,7 @@ namespace BibliotecaAPI.Migrations
             modelBuilder.Entity("BibliotecaAPI.Entidades.RestriccionIP", b =>
                 {
                     b.HasOne("BibliotecaAPI.Entidades.LlaveAPI", "Llave")
-                        .WithMany("RestriccionesIp")
+                        .WithMany()
                         .HasForeignKey("LlaveId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -639,13 +583,6 @@ namespace BibliotecaAPI.Migrations
                     b.Navigation("Autores");
 
                     b.Navigation("Comentarios");
-                });
-
-            modelBuilder.Entity("BibliotecaAPI.Entidades.LlaveAPI", b =>
-                {
-                    b.Navigation("RestriccionesDominio");
-
-                    b.Navigation("RestriccionesIp");
                 });
 #pragma warning restore 612, 618
         }

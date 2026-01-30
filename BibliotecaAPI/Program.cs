@@ -1,5 +1,7 @@
 using BibliotecaAPI.Datos;
+using BibliotecaAPI.DTOs;
 using BibliotecaAPI.Entidades;
+using BibliotecaAPI.Jobs;
 using BibliotecaAPI.Servicios;
 using BibliotecaAPI.Swagger;
 using BibliotecaAPI.Utilidades;
@@ -10,10 +12,117 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Área de Servicios
+
+// Politica limitar peticiones por IP
+builder.Services.AddRateLimiter(opciones =>
+{
+    // Politica global para limitar por IP
+    //opciones.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    //    RateLimitPartition.GetFixedWindowLimiter(
+    //        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+    //        factory: _ => new FixedWindowRateLimiterOptions
+    //        {
+    //            PermitLimit = 5,
+    //            Window = TimeSpan.FromSeconds(10)
+    //        }
+    //    ));
+
+    // Politica "general" para limitar por IP
+    opciones.AddPolicy("general", context =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromSeconds(10)
+                }
+            );
+    });
+
+    // Politica "estricta" para limitar por IP
+    opciones.AddPolicy("estricta", context =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 2,
+                Window = TimeSpan.FromSeconds(5)
+            });
+    });
+
+    // Politca "movil" para limitar por IP usando algoritmo "Sliding Window"
+    opciones.AddPolicy("movil", context =>
+    {
+        return RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromSeconds(10),
+                SegmentsPerWindow = 2,
+                QueueLimit = 1,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
+
+    // Politca "cubeta" para limitar por IP usando algoritmo "Token Bucket"
+    opciones.AddPolicy("cubeta", context =>
+    {
+        return RateLimitPartition.GetTokenBucketLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+            factory: _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = 5,
+                TokensPerPeriod = 2,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(10)
+            });
+    });
+
+    // Politca "concurrencia" para limitar por IP usando algoritmo "Currency Limited"
+    opciones.AddPolicy("concurrencia", context =>
+    {
+        return RateLimitPartition.GetConcurrencyLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+            factory: _ => new ConcurrencyLimiterOptions
+            {
+                PermitLimit = 1
+            });
+    });
+
+    // Politica "prueba-usuario" para limitar por "email" del token
+    opciones.AddPolicy("prueba-usuario", context => {
+        var emailClaim = context.User.Claims.Where(x => x.Type == "email").FirstOrDefault()!;
+        var email = emailClaim.Value;
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: email,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 2,
+                Window = TimeSpan.FromSeconds(20)
+            });
+    });
+
+    // Retorna status 429 al ocurrir error de Rate Limiting
+    opciones.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Se agrega información de respuesta: Mensaje de error y Tiempo de espera siguiente petición en Headers
+    opciones.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)) {
+            context.HttpContext.Response.Headers["Retry-After"] = retryAfter.TotalSeconds.ToString();
+        }
+        await context.HttpContext.Response.WriteAsync("Limite excedido, intente mas tarde.", cancellationToken);
+    };
+});
+
+
 builder.Services.AddOutputCache(opciones => {
     opciones.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(60);
 });
@@ -59,6 +168,10 @@ builder.Services.AddScoped<BibliotecaAPI.Servicios.V1.IServicioAutores, Bibliote
 builder.Services.AddScoped<BibliotecaAPI.Servicios.V1.IGeneradorEnlaces, BibliotecaAPI.Servicios.V1.GeneradorEnlaces>();
 builder.Services.AddScoped<HATEOASAutorAttribute>();
 builder.Services.AddScoped<HATEOASAutoresAttribute>();
+
+builder.Services.AddHostedService<FacturasBackgroundService>();
+
+builder.Services.AddScoped<IServicioLlaves, ServicioLlaves>();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -127,12 +240,17 @@ builder.Services.AddSwaggerGen(opciones => {
 
 });
 
+builder.Services.AddOptions<LimitarPeticionesDTO>()
+    .Bind(builder.Configuration.GetSection(LimitarPeticionesDTO.Seccion))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 var app = builder.Build();
 
 // Se ímplementan todas las migraciones en la BD de Azure la primera vez que se ejecuta el proyecto
 using (var scope = app.Services.CreateScope()) {
     var dbContext = scope.ServiceProvider.GetService<ApplicationDbContext>();
-    if (dbContext.Database.IsRelational()) {
+    if (dbContext!.Database.IsRelational()) {
         dbContext.Database.Migrate();
     }
 }
@@ -169,7 +287,11 @@ app.UseSwaggerUI(opciones => {
 
 app.UseStaticFiles();
 
+app.UseRateLimiter();
+
 app.UseCors();
+
+app.UseLimitarPeticiones();
 
 app.UseOutputCache();
 

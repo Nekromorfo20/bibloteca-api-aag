@@ -7,6 +7,13 @@ namespace BibliotecaAPI.Utilidades
     public class AutoMapperProfiles: Profile
     {
         public AutoMapperProfiles() {
+
+            CreateMap<LlaveAPI, LlaveDTO>();
+
+            CreateMap<RestriccionDominio, RestriccionDominioDTO>();
+
+            CreateMap<RestriccionIP, RestriccionIPDTO>();
+
             CreateMap<Autor, AutorDTO>()
                 .ForMember(dto => dto.NombreCompleto, config =>
                     config.MapFrom(autor => MapearNombreYApellidoAutor(autor)));

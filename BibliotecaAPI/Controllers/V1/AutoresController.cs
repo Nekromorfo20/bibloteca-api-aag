@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
 using System.Linq.Dynamic.Core;
@@ -50,6 +51,7 @@ namespace BibliotecaAPI.Controllers.V1
         [AllowAnonymous]
         [OutputCache(Tags = [cache])]
         [ServiceFilter<HATEOASAutoresAttribute>()]
+        [DeshabilitarLimitarPeticiones]
         public async Task<IEnumerable<AutorDTO>> Get([FromQuery] PaginacionDTO paginacionDTO) {
             return await servicioAutoresV1.Get(paginacionDTO);
 
@@ -79,6 +81,8 @@ namespace BibliotecaAPI.Controllers.V1
 
         [HttpGet("filtrar", Name = "FiltrarAutoresV1")]
         [AllowAnonymous]
+        [DeshabilitarLimitarPeticiones]
+        [EnableRateLimiting("general")]
         public async Task<ActionResult> Filtrar([FromQuery] AutorFiltroDTO autorFiltroDTO) {
             var queryable = context.Autores.AsQueryable();
 
